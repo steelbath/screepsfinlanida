@@ -1,12 +1,8 @@
+require("Globals");
 util = require('TechUtility'); // used for object introspection, see TechUtility package for the functions
 RoomManager = require('RoomManager');
 BinaryHeap = require('BinaryHeap');
 QueueManager = require('QueueManager');
-
-require("Globals");
-
-console.log(globalVar);
-globalFunc();
 
 // Add getter setter memory method for sources
 // Found from interwebs
@@ -37,7 +33,10 @@ if(!Source.prototype.memory)
 profiler = require('screeps-profiler');
 
 if(!Memory.heaps)
-  Memory.heaps = {};
+    Memory.heaps = {};
+
+if(!Memory.constructionSites)
+    Memory.constructionSites = {};
 
 buildingPriorityQueue = undefined;
 if(!Memory.heaps.buildingPriorityQueue)
@@ -46,9 +45,6 @@ else
   buildingPriorityQueue = BinaryHeap.MaxPriorityHeap.deserialize(
     Memory.heaps.buildingPriorityQueue
   );
-
-console.log(buildingPriorityQueue.getValueAtTop());
-
 
 // This line monkey patches the global prototypes.
 profiler.enable();
@@ -77,7 +73,7 @@ module.exports.loop = function() {
 
     Memory.heaps.buildingPriorityQueue = buildingPriorityQueue.serialize();
 
-    console.log(Game.cpu.getUsed());
+    //console.log(Game.cpu.getUsed());
   });
 }
 

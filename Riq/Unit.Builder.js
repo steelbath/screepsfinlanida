@@ -1,90 +1,90 @@
-/** Upgrader **/
-var util = require('TechUtility');
-var creep;
 
-function confirmPath(target)
-{
-    if(!creep.memory.path)
-    {
-        creep.memory.targetID = target.id;
-        creep.memory.path = true;
-        //creep.memory.path = creep.pos.findPathTo(target);
+var Unit = require("Unit");
+
+var actions = {
+    registerToSource: function(room, x, y, structureType, sourceID){
+        actionData = {
+            x: x,
+            y: y,
+            structure: structureType,
+            sourceID: sourceID
+        };
+        pushToQueue(
+            "room",
+            room,
+            "registerStorageToSource",
+            actionData
+        );
     }
-}
+};
 
-function move()
+class UnitBuilder extends Unit
 {
-  creep.moveTo(Game.getObjectById(creep.memory.targetID));
-}
-
-module.exports = {
-  update(_creep)
-  {
-    creep = _creep;
-    var storageIDs = creep.room.memory.storageIDs;
-    var sites = creep.room.unfinishedStructures;
-
-    if(sites.length)
+    allocateCreep()
     {
-        if(creep.memory.action === "build" || creep.carry.energy == creep.carryCapacity)
+
+    }
+
+    update()
+    {
+        super.update();
+        var sites = this.creep.room.unfinishedStructures;
+
+        if(sites.length)
         {
-            if(!creep.memory.targetID)
+            if(this.creep.memory.action === "build" || this.creep.carry.energy == this.creep.carryCapacity)
             {
-                target = creep.pos.findClosestByRange(sites);
-                creep.memory.targetID = target.id;
+                if(!this.creep.memory.targetID)
+                {
+                    var target = this.creep.pos.findClosestByRange(sites);
+                    this.creep.memory.targetID = target.id;
+                }
+                else
+                    var target = Game.getObjectById(this.creep.memory.targetID);
+
+                var result = this.creep.build(target);
+
+                switch(result)
+                {
+                    case ERR_NOT_IN_RANGE:
+                        this.confirmPath(target);
+                        break;
+                    case ERR_NOT_ENOUGH_RESOURCES:
+                        this.creep.memory.action = "travel";
+                        break;
+                    case ERR_INVALID_TARGET:
+                        let targetID = this.creep.memory.targetID;
+                        if(Memory.constructionSites[targetID] && Memory.constructionSites[targetID].onComplete)
+                        {
+                            Memory.constructionSites[targetID].onComplete(
+                                Memory.constructionSites[targetID].onCompleteData
+                            );
+                            delete Memory.constructionSites[targetID];
+                        }
+                        this.creep.memory.targetID = null;
+                        break;
+                    default:
+                        this.creep.memory.action = "build";
+                        this.creep.memory.path = false;
+                        break;
+                }
             }
             else
-                target = Game.getObjectById(creep.memory.targetID);
-
-            result = creep.build(target);
-
-            switch(result)
             {
-                case ERR_NOT_IN_RANGE:
-                    confirmPath(target);
-                    break;
-                case ERR_NOT_ENOUGH_RESOURCES:
-                    creep.memory.action = "travel";
-                    break;
-                case ERR_INVALID_TARGET:
-                    creep.memory.targetID = null;
-                    break;
-                default:
-                    creep.memory.action = "build";
-                    creep.memory.path = false;
-                    break;
-            }
-        }
-        else
-        {
-            var target = null;
-            for(key in storageIDs)
-            {
-                storage = Game.getObjectById(storageIDs[key]);
-                if(storage.store)
-                  store = storage.store;
-                else
-                  store = storage.energy;
-
-                if(store > creep.carryCapacity)
+                var target = this.getWithdrawStorage();
+                if(target)
                 {
-                  target = storage;
-                  break;
+                    if(this.creep.withdraw(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE)
+                        this.confirmPath(target);
+                    else
+                        this.creep.memory.path = false;
                 }
             }
-            if(target)
-            {
-                if(creep.withdraw(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE)
-                {
-                    confirmPath(target);
-                }
-                else
-                    creep.memory.path = false;
-            }
         }
+
+        if(this.creep.memory.path)
+            this.move();
     }
+}
 
-    if(creep.memory.path)
-        move();
-  }
-};
+module.exports = UnitBuilder;

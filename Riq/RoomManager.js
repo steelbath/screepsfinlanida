@@ -10,22 +10,48 @@ RoomStatus = {'CONNECT': 1, 'TRADE': 2, 'BUILD': 3, 'FORTIFY': 4, 'DEFEND': 5, '
 status = RoomStatus.HARVEST; // default room status
 spawner = "None";
 UPGRADERS_NEEDED = 5;
-BUILDERS_NEEDED = 3;
+BUILDERS_NEEDED = 1;
 profiler = require('screeps-profiler');
 
 // createPriorizedConstruction(Game.getObjectById("87d4ada5af2d3c9").room, 25, 18, "extension", 97)
-createPriorizedConstruction = function(room, x, y, structure, priority)
+createPriorizedConstruction = function(room, x, y, structureType, priority)
 {
-    if(room.createConstructionSite(x, y, structure) === OK)
+    var result = room.createConstructionSite(x, y, structureType)
+    if(result === OK)
     {
-        Memory.rooms[room.name].queuedActions.addBuildingToPriorityQueue.push({
-            x: x,
-            y: y,
-            structure: structure,
-            priority: priority
-        });
+        pushToQueue(
+            "room",
+            room,
+            "addBuildingToPriorityQueue",
+            {
+                x: x,
+                y: y,
+                structure: structureType,
+                priority: priority
+            }
+        );
         console.log(Memory.rooms[room.name].queuedActions.addBuildingToPriorityQueue)
     }
+    return result;
+}
+
+function setCompletionActionToBuilding(room, x, y, structureType, action, actionData)
+{
+    pushToQueue(
+        "room",
+        room,
+        "addActionToBuilding",
+        {
+            x: x,
+            y: y,
+            structure: structureType,
+            action: {
+                type: "onComplete",
+                onComplete: action,
+                data: actionData
+            }
+        }
+    );
 }
 
 function buildStorageAround(room, pos, dist=3)
@@ -68,12 +94,13 @@ function buildStorageAround(room, pos, dist=3)
         }
 
         if(canCreate)
-            room.createConstructionSite(positions[key][0], positions[key][1], STRUCTURE_EXTENSION);
+            createPriorizedConstruction(room, positions[key][0], positions[key][1], STRUCTURE_EXTENSION, 100);
     }
 }
 
 function allocateRoom(room)
 {
+    room.memory.caravans = 0;
     room.memory.sourceIDs = _.map(getSources(room), function(source){return source.id;});
     room.memory.storageIDs = _.map(room.spawners, function(spawn){return spawn.id;});
     room.memory.harvestersNeeded = 0;
@@ -87,21 +114,55 @@ function allocateRoom(room)
         source.memory.harvesterAmount = temp.length;
 
         positions = [];
-        positions.push(room.lookAt(source.pos.x -1, source.pos.y +1));
-        positions.push(room.lookAt(source.pos.x -1, source.pos.y));
-        positions.push(room.lookAt(source.pos.x -1, source.pos.y -1));
-        positions.push(room.lookAt(source.pos.x, source.pos.y -1));
-        positions.push(room.lookAt(source.pos.x +1, source.pos.y -1));
-        positions.push(room.lookAt(source.pos.x +1, source.pos.y));
-        positions.push(room.lookAt(source.pos.x +1, source.pos.y +1));
-        positions.push(room.lookAt(source.pos.x , source.pos.y +1));
+        positions.push([source.pos.x -1,    source.pos.y +1 ]);
+        positions.push([source.pos.x -1,    source.pos.y    ]);
+        positions.push([source.pos.x -1,    source.pos.y -1 ]);
+        positions.push([source.pos.x,       source.pos.y -1 ]);
+        positions.push([source.pos.x +1,    source.pos.y -1 ]);
+        positions.push([source.pos.x +1,    source.pos.y    ]);
+        positions.push([source.pos.x +1,    source.pos.y +1 ]);
+        positions.push([source.pos.x ,      source.pos.y +1 ]);
         for(key in positions)
-            for(resKey in positions[key])
+        {
+            var results = room.lookAt(positions[key][0], positions[key][1])
+            for(resKey in results)
             {
-                result = positions[key][resKey];
+                result = results[resKey];
                 if(result.type === "terrain" && result.terrain !== "wall")
+                {
+                    if(!source.memory.storages)
+                    {
+                        result = createPriorizedConstruction(
+                            room,
+                            positions[key][0],
+                            positions[key][1],
+                            STRUCTURE_CONTAINER,
+                            100
+                        );
+                        console.log("creating storage for source: "+source.id, result);
+                        if(result === OK)
+                        {
+                            source.memory.storages = [];
+                            actionData = {
+                                x: positions[key][0],
+                                y: positions[key][1],
+                                structure: STRUCTURE_CONTAINER,
+                                sourceID: source.id
+                            };
+                            setCompletionActionToBuilding(
+                                room,
+                                positions[key][0],
+                                positions[key][1],
+                                STRUCTURE_CONTAINER,
+                                "registerToSource",
+                                actionData
+                            )
+                        }
+                    }
                     source.memory.maxHarvesters++;
+                }
             }
+        }
         room.memory.harvestersNeeded += source.memory.maxHarvesters;
     }
     room.memory.allocated = true;
@@ -125,8 +186,8 @@ function getOptimalSource(sourceIDs)
     var leastUsers = 9999999;
     for(key in sourceIDs)
     {
-        source = Game.getObjectById(sourceIDs[key]);
-        users = source.memory.harvesterAmount;
+        var source = Game.getObjectById(sourceIDs[key]);
+        var users = source.memory.harvesterAmount;
         if(users < source.memory.maxHarvesters && users < leastUsers)
         {
             leastUsers = users;
@@ -138,9 +199,10 @@ function getOptimalSource(sourceIDs)
 
 function getNextUnit(room)
 {
-    if(room.builders.length == 0 &&
-       room.harvesters.length >= room.memory.harvestersNeeded/2+1 &&
-       room.unfinishedStructures.length > 0)
+    let canSpawnBuilders = (BUILDERS_NEEDED > 0 && room.unfinishedStructures.length > 0)
+    if(canSpawnBuilders &&
+       room.builders.length == 0 &&
+       room.harvesters.length >= room.memory.harvestersNeeded/2+1)
     {
         neededUnit = units.smallBuilder;
     }
@@ -153,14 +215,14 @@ function getNextUnit(room)
     {
         neededUnit = units.smallUpgrader;
     }
-    else if(room.builders.length < BUILDERS_NEEDED)
+    else if(canSpawnBuilders && room.builders.length < BUILDERS_NEEDED)
     {
         neededUnit = units.smallBuilder;
     }
     return neededUnit;
 }
 
-profiler.registerObject(Harvester, "Harvester");
+// profiler.registerObject(Harvester, "Harvester");
 profiler.registerObject(Builder, "Builder");
 profiler.registerObject(Upgrader, "Upgrader");
 
@@ -178,6 +240,7 @@ module.exports = {
             allocateRoom(room);
         }
 
+        room.hasCaravan = room.memory.caravans > 0;
         checkQueue("room", room);
         var roomCreepsDict = units.getRoomCreepsDict(room);
         room.harvesters = roomCreepsDict['harvester'];
@@ -214,17 +277,26 @@ module.exports = {
 
         /* Update creeps */
         for(var creep of room.harvesters)
-            Harvester.update(creep);
+        {
+            let harvester = new Harvester(creep);
+            harvester.update();
+        }
         for(var creep of room.upgraders)
-            Upgrader.update(creep);
+        {
+            let upgrader = new Upgrader(creep);
+            upgrader.update();
+        }
         for(var creep of room.builders)
-            Builder.update(creep);
+        {
+            let builder = new Builder(creep);
+            builder.update();
+        }
 
         var hasAvailableSpawner = false;
         for(var key in room.spawners)
             if(room.spawners[key].spawning == null)
             {
-                if(room.spawners[key].energy >= 300)
+                if(room.energyAvailable >= 300)
                 {
                     hasAvailableSpawner = true;
                     spawner = room.spawners[key];

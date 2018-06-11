@@ -1,145 +1,64 @@
-/** Harvester **/
-var util = require('TechUtility');
 
-var creep;
+var Unit = require('Unit');
 
-function confirmPath(target)
+class UnitHarvester extends Unit
 {
-    if(!creep.memory.path)
+    allocateCreep()
     {
-        creep.memory.targetID = target.id;
-        //creep.memory.path = creep.pos.findPathTo(target);
-    }
-}
-
-function move()
-{
-  creep.moveTo(Game.getObjectById(creep.memory.targetID));
-  /*
-    itemsOnNextStep = creep.room.lookAt(
-        creep.memory.path[0].x,
-        creep.memory.path[0].y
-    )
-    pathObstructed = false;
-    for(var key in itemsOnNextStep)
-    {
-        obj = itemsOnNextStep[key];
-        if(obj.type == 'creep' && obj.creep.name != creep.name)
-        {
-            creep.say("bad path!");
-            pathObstructed = true;
-            break;
-        }
+        var source = Game.getObjectById(this.creep.memory.sourceID);
+        source.memory.harvesterAmount++;
     }
 
-    if(!pathObstructed)
+    getDepositStorage()
     {
-        err = creep.moveByPath(creep.memory.path);
-        console.log(err);
-        if(err)
-        {
-            if(err == ERR_NO_PATH)
+        var source = Game.getObjectById(this.creep.memory.sourceID);
+        var srcStorageIDs = source.memory.storages;
+        if(srcStorageIDs && srcStorageIDs.length > 0)
+            for(var x = 0; x < srcStorageIDs.length; x++)
             {
-                creep.memory.path = creep.pos.findPathTo(creep.memory.target);
-                console.log("refound the path!");
+                storage = Game.getObjectById(srcStorageIDs[x]);
+                if(storage.store < storage.storeCapacity)
+                    return storage;
             }
-            creep.moveByPath(creep.memory.path);
-        }
+
+        if(this.creep.room.hasCaravan)
+            // return null for now, and wait caravan to empty the storages
+            return null;
+        return super.getDepositStorage();
     }
-    else
+
+    update()
     {
-        console.log("remaking path!");
-        creep.memory.path = creep.pos.findPathTo(creep.memory.target.pos.x, creep.memory.target.pos.y);
-        creep.moveByPath(creep.memory.path);
-    }
-  */
-}
+        super.update();
 
-function allocateCreep(creep)
-{
-    source = Game.getObjectById(creep.memory.sourceID);
-    source.memory.harvesterAmount++;
-    creep.memory.allocated = true;
-}
-
-module.exports = {
-  update(_creep)
-  {
-    creep = _creep;
-    if(creep.spawning)
-      return
-
-    if(!creep.memory.allocated)
-      allocateCreep(creep);
-
-    var sources = creep.room.sources;
-    var targets = creep.room.find(FIND_STRUCTURES,
+        if(this.creep.memory.action === "storing" || this.creep.carry.energy === this.creep.carryCapacity)
         {
-            filter: (structure) =>
+            var target = this.getDepositStorage();
+            if(target)
             {
-                return (
-                    structure.structureType == STRUCTURE_EXTENSION ||
-                    structure.structureType == STRUCTURE_SPAWN) &&
-                    structure.energy < structure.energyCapacity;
-            }
-        }
-    );
-
-
-    if(creep.memory.action === "storing" || creep.carry.energy === creep.carryCapacity)
-    {
-          // console.log(targets);
-          if(targets.length)
-          {
-              var result = creep.transfer(targets[0], RESOURCE_ENERGY);
-              if(result === ERR_NOT_IN_RANGE)
-              {
-                confirmPath(targets[0]);
-              }
-              else if(result === ERR_FULL || (result === OK && creep.carry.energy > 0))
-              {
-                creep.memory.action = "storing";
-
-                var newTarget = null;
-                for(var x = 1; x < targets.length && !newTarget; x++)
-                  if(targets[x].energy < targets[x].energyCapacity)
-                    newTarget = targets[x];
-
-                if(!newTarget)
-                  targets = creep.room.find(FIND_STRUCTURES,
-                    {
-                      filter: (structure) =>
-                      {
-                          return (
-                              structure.structureType == STRUCTURE_EXTENSION ||
-                              structure.structureType == STRUCTURE_SPAWN) &&
-                              structure.energy < structure.energyCapacity;
-                      }
-                    }
-                  )
+                var result = this.creep.transfer(target, RESOURCE_ENERGY);
+                if(result === ERR_NOT_IN_RANGE)
+                    this.confirmPath(target);
+                else if(result === ERR_FULL || (result === OK && this.creep.carry.energy > 0))
+                    this.creep.memory.action = "storing";
                 else
-                  targets = [newTarget];
-
-                creep.memory.path = false;
-              }
-              else
-              {
-                creep.memory.action = "traveling";
-                creep.memory.path = false;
-              }
-          }
-    }
-    else
-    {
-        if(creep.harvest(Game.getObjectById(creep.memory.sourceID)) == ERR_NOT_IN_RANGE)
-        {
-          confirmPath(Game.getObjectById(creep.memory.sourceID));
+                {
+                    this.creep.memory.action = "traveling";
+                    this.creep.memory.path = false;
+                }
+            }
         }
         else
-          creep.memory.path = false;
-    }
+        {
+            if(this.creep.harvest(Game.getObjectById(this.creep.memory.sourceID)) == ERR_NOT_IN_RANGE)
+                this.confirmPath(Game.getObjectById(this.creep.memory.sourceID));
+            else
+                this.creep.memory.path = false;
+        }
 
-    //if(creep.memory.path)
-        move();
-  }
-};
+        if(this.creep.memory.path)
+            this.move();
+    }
+}
+
+module.exports = UnitHarvester;
