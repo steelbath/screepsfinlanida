@@ -7,6 +7,24 @@ class UnitUpgrader extends Unit
 
     }
 
+    getWithdrawStorage()
+    {
+        var controller = this.creep.room.controller
+        var ctrlStorageIDs = controller.memory.storages;
+        if(ctrlStorageIDs && ctrlStorageIDs.length > 0)
+            for(var x = 0; x < ctrlStorageIDs.length; x++)
+            {
+                var storage = Game.getObjectById(ctrlStorageIDs[x]);
+                if(storage.store.energy > 0)
+                    return storage;
+            }
+
+        if(this.creep.room.hasCaravan)
+            // return null for now, and wait caravan to fill the storages
+            return null;
+        return super.getWithdrawStorage();
+    }
+
     update()
     {
         super.update();

@@ -1,7 +1,4 @@
 var SpawnManager = require('SpawnManager');
-var Harvester = require('Unit.Harvester');
-var Upgrader = require('Unit.Upgrader');
-var Builder = require('Unit.Builder');
 var util = require('TechUtility');
 var units = require('Units');
 
@@ -9,8 +6,9 @@ RoomStatus = {'CONNECT': 1, 'TRADE': 2, 'BUILD': 3, 'FORTIFY': 4, 'DEFEND': 5, '
 
 status = RoomStatus.HARVEST; // default room status
 spawner = "None";
-UPGRADERS_NEEDED = 5;
-BUILDERS_NEEDED = 1;
+UPGRADERS_NEEDED = 2;
+CARAVANS_NEEDED = 2;
+BUILDERS_NEEDED = 2;
 profiler = require('screeps-profiler');
 
 // createPriorizedConstruction(Game.getObjectById("87d4ada5af2d3c9").room, 25, 18, "extension", 97)
@@ -30,7 +28,7 @@ createPriorizedConstruction = function(room, x, y, structureType, priority)
                 priority: priority
             }
         );
-        console.log(Memory.rooms[room.name].queuedActions.addBuildingToPriorityQueue)
+        console.log(room.memory.queuedActions.addBuildingToPriorityQueue)
     }
     return result;
 }
@@ -102,7 +100,15 @@ function allocateRoom(room)
 {
     room.memory.caravans = 0;
     room.memory.sourceIDs = _.map(getSources(room), function(source){return source.id;});
-    room.memory.storageIDs = _.map(room.spawners, function(spawn){return spawn.id;});
+    room.storages = room.find(
+        FIND_STRUCTURES, {
+            filter: (structure) => {
+                return (structure.structureType == STRUCTURE_EXTENSION
+                    || structure.structureType == STRUCTURE_SPAWN)
+                    && structure.energy < structure.energyCapacity;
+            }
+        });
+    room.memory.storageIDs = _.map(room.storages, function(store){return store.id;});
     room.memory.harvestersNeeded = 0;
     for(key in room.memory.sourceIDs)
     {
@@ -200,24 +206,40 @@ function getOptimalSource(sourceIDs)
 function getNextUnit(room)
 {
     let canSpawnBuilders = (BUILDERS_NEEDED > 0 && room.unfinishedStructures.length > 0)
+    let canSpawnCaravan =  false;
+    for(var x = 0; x < room.memory.sourceIDs.length; x++)
+    {
+        source = Game.getObjectById(room.memory.sourceIDs[x])
+        if(source.memory.storages.length > 0)
+        {
+            canSpawnCaravan = true;
+            break;
+        }
+    }
+
     if(canSpawnBuilders &&
        room.builders.length == 0 &&
-       room.harvesters.length >= room.memory.harvestersNeeded/2+1)
+       room.harvesters.length >= room.memory.sourceIDs.length)
     {
-        neededUnit = units.smallBuilder;
+        neededUnit = units.makeBuilder(room);
     }
-    else if(room.harvesters.length < room.memory.harvestersNeeded)
+    else if(canSpawnCaravan && room.harvesters.length > 0 && room.caravans.length < CARAVANS_NEEDED)
     {
-        neededUnit = units.smallHarvester;
+        neededUnit = units.makeCaravan(room);
+    }
+    else if(room.harvesters.length < room.memory.harvestersNeeded && room.caravans.length == 0
+         || room.harvesters.length < room.memory.sourceIDs.length)
+    {
+        neededUnit = units.makeHarvester(room);
         neededUnit.memory = util.joinDicts({'sourceID': getOptimalSource(room.memory.sourceIDs)}, neededUnit.memory);
     }
     else if(room.upgraders.length < UPGRADERS_NEEDED)
     {
-        neededUnit = units.smallUpgrader;
+        neededUnit = units.makeUpgrader(room);
     }
     else if(canSpawnBuilders && room.builders.length < BUILDERS_NEEDED)
     {
-        neededUnit = units.smallBuilder;
+        neededUnit = units.makeBuilder(room);
     }
     return neededUnit;
 }
@@ -232,6 +254,17 @@ module.exports = {
         if(!room.controller || !room.controller.my)
             return;
 
+        if(!room.memory.heaps)
+            room.memory.heaps = {};
+
+        buildingPriorityQueue = undefined;
+        if(!room.memory.buildingPriorityQueue)
+            room.buildingPriorityQueue = new BinaryHeap.MaxPriorityHeap();
+        else
+            room.buildingPriorityQueue = BinaryHeap.MaxPriorityHeap.deserialize(
+                room.memory.heaps.buildingPriorityQueue
+            );
+
         room.unfinishedStructures = _.filter(Game.constructionSites, (site) => site.room.id === room.id);
         room.spawners = getSpawners(room);
         if(!room.memory.allocated)
@@ -240,12 +273,13 @@ module.exports = {
             allocateRoom(room);
         }
 
-        room.hasCaravan = room.memory.caravans > 0;
         checkQueue("room", room);
         var roomCreepsDict = units.getRoomCreepsDict(room);
         room.harvesters = roomCreepsDict['harvester'];
         room.upgraders = roomCreepsDict['upgrader'];
         room.builders = roomCreepsDict['builder'];
+        room.caravans = roomCreepsDict['caravan'];
+        room.hasCaravan = room.caravans.length > 0;
 
         /* Get room situation and set status accordingly */
         neededUnit = null
@@ -276,6 +310,11 @@ module.exports = {
         }
 
         /* Update creeps */
+        for(var creep of room.caravans)
+        {
+            let caravan = new Caravan(creep);
+            caravan.update();
+        }
         for(var creep of room.harvesters)
         {
             let harvester = new Harvester(creep);
@@ -296,7 +335,10 @@ module.exports = {
         for(var key in room.spawners)
             if(room.spawners[key].spawning == null)
             {
-                if(room.energyAvailable >= 300)
+                if(room.energyAvailable >= room.energyCapacityAvailable -50
+                && room.energyAvailable >= 300
+                || room.caravans.length == 0
+                && room.energyAvailable >= 300)
                 {
                     hasAvailableSpawner = true;
                     spawner = room.spawners[key];
@@ -310,5 +352,7 @@ module.exports = {
             if(neededUnit)
                 SpawnManager.update(spawner, neededUnit, room)
         }
+
+        room.memory.heaps.buildingPriorityQueue = room.buildingPriorityQueue.getData();
     }
 };

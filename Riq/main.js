@@ -28,23 +28,36 @@ if(!Source.prototype.memory)
       }
   });
 
+  // Add getter setter memory method for sources
+  // Found from interwebs
+  if(!StructureController.prototype.memory)
+    Object.defineProperty(StructureController.prototype, 'memory', {
+        get: function() {
+            if(_.isUndefined(Memory.controllers)) {
+                Memory.controllers = {};
+            }
+            if(!_.isObject(Memory.controllers)) {
+                return undefined;
+            }
+            return Memory.controllers[this.id] = Memory.controllers[this.id] || {};
+        },
+        set: function(value) {
+            if(_.isUndefined(Memory.controllers)) {
+                Memory.controllers = {};
+            }
+            if(!_.isObject(Memory.controllers)) {
+                throw new Error('Could not set source memory');
+            }
+            Memory.controllers[this.id] = value;
+        }
+    });
+
 // Any modules that you use that modify the game's prototypes should be require'd
 // before you require the profiler.
 profiler = require('screeps-profiler');
 
-if(!Memory.heaps)
-    Memory.heaps = {};
-
 if(!Memory.constructionSites)
     Memory.constructionSites = {};
-
-buildingPriorityQueue = undefined;
-if(!Memory.heaps.buildingPriorityQueue)
-  buildingPriorityQueue = new BinaryHeap.MaxPriorityHeap();
-else
-  buildingPriorityQueue = BinaryHeap.MaxPriorityHeap.deserialize(
-    Memory.heaps.buildingPriorityQueue
-  );
 
 // This line monkey patches the global prototypes.
 profiler.enable();
@@ -70,8 +83,6 @@ module.exports.loop = function() {
     {
         RoomManager.update(Game.rooms[key]);
     }
-
-    Memory.heaps.buildingPriorityQueue = buildingPriorityQueue.serialize();
 
     //console.log(Game.cpu.getUsed());
   });

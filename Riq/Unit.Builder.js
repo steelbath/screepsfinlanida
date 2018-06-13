@@ -2,13 +2,8 @@
 var Unit = require("Unit");
 
 var actions = {
-    registerToSource: function(room, x, y, structureType, sourceID){
-        actionData = {
-            x: x,
-            y: y,
-            structure: structureType,
-            sourceID: sourceID
-        };
+    registerToSource: function(room, actionData){
+        console.log(room, actionData);
         pushToQueue(
             "room",
             room,
@@ -56,7 +51,8 @@ class UnitBuilder extends Unit
                         let targetID = this.creep.memory.targetID;
                         if(Memory.constructionSites[targetID] && Memory.constructionSites[targetID].onComplete)
                         {
-                            Memory.constructionSites[targetID].onComplete(
+                            actions[Memory.constructionSites[targetID].onComplete](
+                                this.creep.room,
                                 Memory.constructionSites[targetID].onCompleteData
                             );
                             delete Memory.constructionSites[targetID];

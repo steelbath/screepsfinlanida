@@ -32,6 +32,8 @@ class Unit
     {
         var target = null;
         var storageIDs = this.creep.room.memory.storageIDs;
+        storageIDs = [...storageIDs, ...this.creep.room.controller.memory.storages];
+        var storages = [];
         for(var key in storageIDs)
         {
             var storage = Game.getObjectById(storageIDs[key]);
@@ -39,21 +41,16 @@ class Unit
             if(storage.store)
             {
               store = storage.store;
-              if(storage.store < storage.storeCapacity)
-              {
-                target = storage;
-                break;
-              }
+              if(storage.store.energy < storage.storeCapacity)
+                  storages.push(storage);
             }
             else
-            {
-              if(storage.energy < storage.energyCapacity)
-              {
-                target = storage;
-                break;
-              }
-            }
+                if(storage.energy < storage.energyCapacity)
+                    storages.push(storage);
         }
+        if(storages.length > 0)
+            target = this.creep.pos.findClosestByRange(storages);
+
         return target;
     }
 
@@ -66,7 +63,7 @@ class Unit
             var storage = Game.getObjectById(storageIDs[key]);
             var store;
             if(storage.store)
-              store = storage.store;
+              store = storage.store.energy;
             else
               store = storage.energy;
 
@@ -81,12 +78,14 @@ class Unit
 
     confirmPath(target)
     {
-        if(!this.creep.memory.path)
+        if(target)
         {
             this.creep.memory.targetID = target.id;
             this.creep.memory.path = true;
             //this.creep.memory.path = this.creep.pos.findPathTo(target);
         }
+        else
+            this.creep.memory.path = false;
     }
 
     move()

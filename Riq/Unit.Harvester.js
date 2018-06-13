@@ -16,8 +16,8 @@ class UnitHarvester extends Unit
         if(srcStorageIDs && srcStorageIDs.length > 0)
             for(var x = 0; x < srcStorageIDs.length; x++)
             {
-                storage = Game.getObjectById(srcStorageIDs[x]);
-                if(storage.store < storage.storeCapacity)
+                var storage = Game.getObjectById(srcStorageIDs[x]);
+                if(storage.store.energy < storage.storeCapacity)
                     return storage;
             }
 

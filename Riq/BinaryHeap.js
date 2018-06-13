@@ -106,6 +106,18 @@ class ExtendableBinaryHeap
   }
 
   /**
+  * Return raw data of the heap
+  *
+  * @type {function}
+  *
+  * @returns {list}
+  */
+  getData()
+  {
+    return this.nodes;
+  }
+
+  /**
   * Builds new BinaryHeap from the serialized JSON-data
   *
   * @type {function}

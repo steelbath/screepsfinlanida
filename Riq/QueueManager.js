@@ -63,7 +63,7 @@ var roomActions = {
                                                  "constructionSite", cnstrData.structure);
                 if(building)
                 {
-                    buildingPriorityQueue.push({
+                    room.buildingPriorityQueue.push({
                         id: building.id,
                         priority: cnstrData.priority
                     });
@@ -108,7 +108,7 @@ var roomActions = {
                     var source = Game.getObjectById(cnstrData.sourceID);
                     source.memory.storages.push(building.id);
                     console.log("Registered storage for source: " + source.id)
-                    buildingData.splice(x, 1);
+                    storageData.splice(x, 1);
                     x--;
                 }
             }
@@ -138,11 +138,11 @@ pushToQueue = function(target, targetObj, action, actionData){
     {
         case "room":
             try{
-                Memory.rooms[targetObj.name].queuedActions[action].push(actionData);
+                targetObj.memory.queuedActions[action].push(actionData);
             }
             catch(e){
-                Memory.rooms[targetObj.name].queuedActions[action] = [];
-                Memory.rooms[targetObj.name].queuedActions[action].push(actionData);
+                targetObj.memory.queuedActions[action] = [];
+                targetObj.memory.queuedActions[action].push(actionData);
             }
             break;
         case "creep":
