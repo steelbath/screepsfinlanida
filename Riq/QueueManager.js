@@ -32,7 +32,7 @@ function roomQueue()
         }
         catch(e){
             console.log("[QueueManager]: ", action, " is not a defined action!");
-            console.log(e);
+            throw e;
         }
         /*
         // Legacy code
@@ -87,9 +87,84 @@ var roomActions = {
                     var actionType = cnstrData.action.type;
                     if(!Memory.constructionSites[building.id])
                         Memory.constructionSites[building.id] = {};
+                    if(!Memory.constructionSites[building.id][actionType+"Data"])
+                        Memory.constructionSites[building.id][actionType+"Data"] = [];
                     Memory.constructionSites[building.id][actionType] = cnstrData.action[actionType];
-                    Memory.constructionSites[building.id][actionType+"Data"] = cnstrData.action.data;
+                    Memory.constructionSites[building.id][actionType+"Data"].push(cnstrData.action.data);
                     buildingData.splice(x, 1);
+                    x--;
+                }
+            }
+        }
+    },
+    addSiteToSource: function(storageData){
+        if(storageData.length !== 0)
+        {
+            for(var x = 0; x < storageData.length; x++)
+            {
+                var cnstrData = storageData[x];
+                var building = getConstructionAt(room, cnstrData.x, cnstrData.y,
+                                                 "constructionSite", STRUCTURE_CONTAINER);
+                if(building)
+                {
+                    var source = Game.getObjectById(cnstrData.sourceID);
+                    source.memory.pendingStorages.push(building.id);
+                    console.log("Registered storage ConstructionSite for source: " + source.id)
+
+                    actionData = {
+                        x: positions[key][0],
+                        y: positions[key][1],
+                        structure: STRUCTURE_CONTAINER,
+                        sourceID: source.id,
+                        siteID: building.id
+                    };
+                    setCompletionActionToBuilding(
+                        room,
+                        cnstrData.x,
+                        cnstrData.y,
+                        STRUCTURE_CONTAINER,
+                        "registerToSource",
+                        actionData
+                    )
+
+                    storageData.splice(x, 1);
+                    x--;
+                }
+            }
+        }
+    },
+    registerStorageToMemory: function(storageData){
+        if(storageData.length !== 0)
+        {
+            for(var x = 0; x < storageData.length; x++)
+            {
+                var cnstrData = storageData[x];
+                var building = getConstructionAt(room, cnstrData.x, cnstrData.y,
+                                                 "structure", cnstrData.structure);
+                if(building)
+                {
+                    var object = Game.getObjectById(cnstrData.objectID);
+                    object.memory.storages.push(building.id);
+                    console.log("Registered storage for object: " + object.id)
+                    storageData.splice(x, 1);
+                    x--;
+                }
+            }
+        }
+    },
+    addStorageToRoom: function(storageData){
+        if(storageData.length !== 0)
+        {
+            for(var x = 0; x < storageData.length; x++)
+            {
+                var cnstrData = storageData[x];
+                var building = getConstructionAt(room, cnstrData.x, cnstrData.y,
+                                                 "structure", cnstrData.structure);
+                if(building)
+                {
+                    room.memory.storageIDs.push(building.id);
+                    console.log("Registered storage for room: " + room.name)
+                    storageData.splice(x, 1);
                     x--;
                 }
             }
@@ -101,6 +176,7 @@ var roomActions = {
             for(var x = 0; x < storageData.length; x++)
             {
                 var cnstrData = storageData[x];
+                console.log(JSON.stringify(cnstrData));
                 var building = getConstructionAt(room, cnstrData.x, cnstrData.y,
                                                  "structure", cnstrData.structure);
                 if(building)
@@ -108,6 +184,13 @@ var roomActions = {
                     var source = Game.getObjectById(cnstrData.sourceID);
                     source.memory.storages.push(building.id);
                     console.log("Registered storage for source: " + source.id)
+
+                    for(var i = 0; i < source.memory.pendingStorages.length; i++)
+                        if(source.memory.pendingStorages[i] === cnstrData.siteID)
+                        {
+                            source.memory.pendingStorages.splice(i, 1);
+                            break;
+                        }
                     storageData.splice(x, 1);
                     x--;
                 }
@@ -141,8 +224,15 @@ pushToQueue = function(target, targetObj, action, actionData){
                 targetObj.memory.queuedActions[action].push(actionData);
             }
             catch(e){
-                targetObj.memory.queuedActions[action] = [];
-                targetObj.memory.queuedActions[action].push(actionData);
+                try{
+                    targetObj.memory.queuedActions[action] = [];
+                    targetObj.memory.queuedActions[action].push(actionData);
+                }
+                catch(exc){
+                    targetObj.memory.queuedActions = {};
+                    targetObj.memory.queuedActions[action] = [];
+                    targetObj.memory.queuedActions[action].push(actionData);
+                }
             }
             break;
         case "creep":

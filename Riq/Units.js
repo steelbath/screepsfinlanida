@@ -3,23 +3,10 @@ Upgrader = require('Unit.Upgrader');
 Builder = require('Unit.Builder');
 Caravan = require('Unit.Caravan');
 
-module.exports = {
-    /*
-        Cost Table:
-
-        MOVE:           50
-        WORK:           100
-        CARRY:          50
-        ATTACK:         80
-        RANGED_ATTACK:	150
-        HEAL:           250
-        TOUGH:          10
-        CLAIM:          600
-    */
-
+var defaults = {
     /* Early game creeps */
     smallHarvester: {
-        body: [CARRY, CARRY, WORK, MOVE, MOVE],
+        body: [CARRY, WORK, WORK, MOVE],
         namePrefix: 'Small_Harverster_',
         role: 'harvester',
         memory: {}
@@ -44,7 +31,22 @@ module.exports = {
         namePrefix: 'Small_Caravan_',
         role: 'caravan',
         memory: {}
-    },
+    }
+}
+
+module.exports = {
+    /*
+        Cost Table:
+
+        MOVE:           50
+        WORK:           100
+        CARRY:          50
+        ATTACK:         80
+        RANGED_ATTACK:	150
+        HEAL:           250
+        TOUGH:          10
+        CLAIM:          600
+    */
 
 
     /* Scaling creeps */
@@ -54,7 +56,7 @@ module.exports = {
 
         var total = room.energyCapacityAvailable;
         if(total < 400)
-            return smallHarvester;
+            return defaults.smallHarvester;
 
         var excessEnergy = room.energyAvailable -100;
         var parts = [CARRY, MOVE];
@@ -78,7 +80,7 @@ module.exports = {
 
         var total = room.energyCapacityAvailable;
         if(total < 400)
-            return smallUpgrader;
+            return defaults.smallUpgrader;
 
         var excessEnergy = room.energyAvailable -100;
         var parts = [CARRY, MOVE];
@@ -102,7 +104,7 @@ module.exports = {
 
         var total = room.energyCapacityAvailable;
         if(total < 400)
-            return smallBuilder;
+            return defaults.smallBuilder;
 
         var excessEnergy = room.energyAvailable;
         var parts = [];
@@ -126,7 +128,7 @@ module.exports = {
 
         var total = room.energyCapacityAvailable;
         if(total < 400)
-            return smallCaravan;
+            return defaults.smallCaravan;
 
         var excessEnergy = room.energyAvailable -100;
         var parts = [CARRY, MOVE];

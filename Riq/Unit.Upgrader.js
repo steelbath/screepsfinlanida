@@ -19,7 +19,7 @@ class UnitUpgrader extends Unit
                     return storage;
             }
 
-        if(this.creep.room.hasCaravan)
+        if(this.creep.room.hasCaravan && ctrlStorageIDs && ctrlStorageIDs.length > 0)
             // return null for now, and wait caravan to fill the storages
             return null;
         return super.getWithdrawStorage();
@@ -32,6 +32,19 @@ class UnitUpgrader extends Unit
 
         if(this.creep.memory.action === "upgrade" || this.creep.carry.energy === this.creep.carryCapacity)
         {
+            var storageIDs = this.creep.room.controller.memory.storages;
+            if(storageIDs && storageIDs.length > 0 && this.creep.carry.energy > 10)
+            {
+                for(var x = 0; x < storageIDs.length; x++)
+                {
+                    var storage = Game.getObjectById(storageIDs[x]);
+                    if(storage.hits < storage.hitsMax * 0.9)
+                    {
+                        this.creep.repair(storage);
+                        return;
+                    }
+                }
+            }
             var result = this.creep.upgradeController(controller);
             if(result == ERR_NOT_IN_RANGE)
                 this.confirmPath(controller);

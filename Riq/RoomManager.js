@@ -6,7 +6,7 @@ RoomStatus = {'CONNECT': 1, 'TRADE': 2, 'BUILD': 3, 'FORTIFY': 4, 'DEFEND': 5, '
 
 status = RoomStatus.HARVEST; // default room status
 spawner = "None";
-UPGRADERS_NEEDED = 2;
+UPGRADERS_NEEDED = 3;
 CARAVANS_NEEDED = 2;
 BUILDERS_NEEDED = 2;
 profiler = require('screeps-profiler');
@@ -14,7 +14,8 @@ profiler = require('screeps-profiler');
 // createPriorizedConstruction(Game.getObjectById("87d4ada5af2d3c9").room, 25, 18, "extension", 97)
 createPriorizedConstruction = function(room, x, y, structureType, priority)
 {
-    var result = room.createConstructionSite(x, y, structureType)
+    var result = room.createConstructionSite(x, y, structureType);
+    console.log("Can create construction: ", result === OK);
     if(result === OK)
     {
         pushToQueue(
@@ -28,7 +29,77 @@ createPriorizedConstruction = function(room, x, y, structureType, priority)
                 priority: priority
             }
         );
-        console.log(room.memory.queuedActions.addBuildingToPriorityQueue)
+    }
+    return result;
+}
+
+function createStorageForSource(room, x, y, sourceID)
+{
+    var result = createPriorizedConstruction(room, x, y, STRUCTURE_CONTAINER, 0)
+    if(result === OK)
+    {
+        console.log("creating storage for source: "+source.id, result);
+        pushToQueue(
+            "room",
+            room,
+            "addSiteToSource",
+            {
+                x: x,
+                y: y,
+                structure: STRUCTURE_CONTAINER,
+                sourceID: sourceID
+            }
+        );
+    }
+    return result;
+}
+
+function createRoomStorage(room, x, y, structureType, priority=50)
+{
+    if(structureType !== STRUCTURE_CONTAINER
+    && structureType !== STRUCTURE_EXTENSION
+    && structureType !== STRUCTURE_STORAGE)
+        return -50;
+
+    var result = createPriorizedConstruction(room, x, y, structureType, priority)
+    if(result === OK)
+    {
+        actionData = {
+            x: x,
+            y: y,
+            structure: structureType
+        };
+        setCompletionActionToBuilding(
+            room,
+            x,
+            y,
+            structureType,
+            "addStorageToRoom",
+            actionData
+        )
+    }
+    return result;
+}
+
+function createStorageForObject(room, x, y, objectID, priority=50)
+{
+    var result = createPriorizedConstruction(room, x, y, STRUCTURE_CONTAINER, priority)
+    if(result === OK)
+    {
+        actionData = {
+            x: x,
+            y: y,
+            structure: STRUCTURE_CONTAINER,
+            objectID: objectID
+        };
+        setCompletionActionToBuilding(
+            room,
+            x,
+            y,
+            STRUCTURE_CONTAINER,
+            "registerStorageToMemory",
+            actionData
+        )
     }
     return result;
 }
@@ -55,6 +126,7 @@ function setCompletionActionToBuilding(room, x, y, structureType, action, action
 function buildStorageAround(room, pos, dist=3)
 {
     var size = dist-2;
+    positions = [];
     positions.push([pos.x - dist, pos.y + dist]);
     positions.push([pos.x + dist, pos.y + dist]);
     positions.push([pos.x + dist, pos.y - dist]);
@@ -77,8 +149,19 @@ function buildStorageAround(room, pos, dist=3)
         positions.push([pos.x - dist + i, pos.y - dist]);
         positions.push([pos.x - dist, pos.y - dist + i]);
     }
+
+    let roomExtensions = room.find(
+        FIND_STRUCTURES, {
+            filter: (structure) => {return (structure.structureType == STRUCTURE_EXTENSION);}
+        }
+    ).length;
+    let roomMaxExtensions = roomLevelData[room.controller.level].extensions;
+
     for(key in positions)
     {
+        if(roomExtensions === roomMaxExtensions)
+            break;
+
         var results = room.lookAt(positions[key][0], positions[key][1])
         var canCreate = true;
         for(resKey in results)
@@ -92,22 +175,29 @@ function buildStorageAround(room, pos, dist=3)
         }
 
         if(canCreate)
-            createPriorizedConstruction(room, positions[key][0], positions[key][1], STRUCTURE_EXTENSION, 100);
+        {
+            let res = createRoomStorage(room, positions[key][0], positions[key][1], STRUCTURE_EXTENSION, 100);
+            if(res === OK)
+                roomExtensions++;
+        }
     }
 }
 
 function allocateRoom(room)
 {
-    room.memory.caravans = 0;
-    room.memory.sourceIDs = _.map(getSources(room), function(source){return source.id;});
     room.storages = room.find(
         FIND_STRUCTURES, {
             filter: (structure) => {
                 return (structure.structureType == STRUCTURE_EXTENSION
-                    || structure.structureType == STRUCTURE_SPAWN)
-                    && structure.energy < structure.energyCapacity;
+                    || structure.structureType == STRUCTURE_SPAWN);
             }
         });
+    if(!room.storages || room.storages.length == 0)
+        return;
+
+    room.memory.caravans = 0;
+    room.memory.sourceIDs = _.map(getSources(room), function(source){return source.id;});
+    room.memory.level = room.controller.level;
     room.memory.storageIDs = _.map(room.storages, function(store){return store.id;});
     room.memory.harvestersNeeded = 0;
     for(key in room.memory.sourceIDs)
@@ -136,34 +226,16 @@ function allocateRoom(room)
                 result = results[resKey];
                 if(result.type === "terrain" && result.terrain !== "wall")
                 {
-                    if(!source.memory.storages)
+                    if(!source.memory.storages && !source.memory.pendingStorages)
                     {
-                        result = createPriorizedConstruction(
+                        source.memory.storages = [];
+                        source.memory.pendingStorages = [];
+                        result = createStorageForSource(
                             room,
                             positions[key][0],
                             positions[key][1],
-                            STRUCTURE_CONTAINER,
-                            100
+                            source.id
                         );
-                        console.log("creating storage for source: "+source.id, result);
-                        if(result === OK)
-                        {
-                            source.memory.storages = [];
-                            actionData = {
-                                x: positions[key][0],
-                                y: positions[key][1],
-                                structure: STRUCTURE_CONTAINER,
-                                sourceID: source.id
-                            };
-                            setCompletionActionToBuilding(
-                                room,
-                                positions[key][0],
-                                positions[key][1],
-                                STRUCTURE_CONTAINER,
-                                "registerToSource",
-                                actionData
-                            )
-                        }
                     }
                     source.memory.maxHarvesters++;
                 }
@@ -172,8 +244,7 @@ function allocateRoom(room)
         room.memory.harvestersNeeded += source.memory.maxHarvesters;
     }
     room.memory.allocated = true;
-    for(var key in room.spawners)
-        buildStorageAround(room, room.spawners[key].pos);
+    console.log("Room "+room.name+" allocated")
 }
 
 function getSpawners(room)
@@ -190,7 +261,7 @@ function getOptimalSource(sourceIDs)
 {
     var optimalSourceID = sourceIDs[0];
     var leastUsers = 9999999;
-    for(key in sourceIDs)
+    for(var key in sourceIDs)
     {
         var source = Game.getObjectById(sourceIDs[key]);
         var users = source.memory.harvesterAmount;
@@ -205,35 +276,41 @@ function getOptimalSource(sourceIDs)
 
 function getNextUnit(room)
 {
-    let canSpawnBuilders = (BUILDERS_NEEDED > 0 && room.unfinishedStructures.length > 0)
     let canSpawnCaravan =  false;
+    let sourceStorageIDs = [];
+    let sourceStorageConstSiteIDs = [];
     for(var x = 0; x < room.memory.sourceIDs.length; x++)
     {
-        source = Game.getObjectById(room.memory.sourceIDs[x])
-        if(source.memory.storages.length > 0)
+        let id = room.memory.sourceIDs[x];
+        if(Memory.sources[id].storages.length > 0)
         {
             canSpawnCaravan = true;
-            break;
+            sourceStorageIDs = [sourceStorageIDs, ...Memory.sources[id].storages];
         }
+        if(Memory.sources[id].pendingStorages.length > 0)
+            sourceStorageConstSiteIDs = [sourceStorageConstSiteIDs, ...Memory.sources[id].pendingStorages];
     }
 
-    if(canSpawnBuilders &&
-       room.builders.length == 0 &&
-       room.harvesters.length >= room.memory.sourceIDs.length)
-    {
-        neededUnit = units.makeBuilder(room);
-    }
-    else if(canSpawnCaravan && room.harvesters.length > 0 && room.caravans.length < CARAVANS_NEEDED)
+    let canSpawnBuilders = (BUILDERS_NEEDED > 0 && room.unfinishedStructures.length > sourceStorageConstSiteIDs.length)
+    if(canSpawnCaravan && room.harvesters.length > 0 && room.caravans.length < CARAVANS_NEEDED)
     {
         neededUnit = units.makeCaravan(room);
+    }
+    else if(canSpawnBuilders
+         && room.builders.length == 0
+         && room.harvesters.length >= room.memory.sourceIDs.length
+         && room.builders.length < room.unfinishedStructures.length)
+    {
+        neededUnit = units.makeBuilder(room);
     }
     else if(room.harvesters.length < room.memory.harvestersNeeded && room.caravans.length == 0
          || room.harvesters.length < room.memory.sourceIDs.length)
     {
         neededUnit = units.makeHarvester(room);
-        neededUnit.memory = util.joinDicts({'sourceID': getOptimalSource(room.memory.sourceIDs)}, neededUnit.memory);
+        let optimSourceID = getOptimalSource(room.memory.sourceIDs);
+        neededUnit.memory = util.joinDicts(neededUnit.memory, {'sourceID': optimSourceID});
     }
-    else if(room.upgraders.length < UPGRADERS_NEEDED)
+    else if(room.upgraders.length < UPGRADERS_NEEDED && sourceStorageIDs.length > 0)
     {
         neededUnit = units.makeUpgrader(room);
     }
@@ -242,6 +319,48 @@ function getNextUnit(room)
         neededUnit = units.makeBuilder(room);
     }
     return neededUnit;
+}
+
+function roomUpgrade(room)
+{
+    for(var key in room.spawners)
+        buildStorageAround(room, room.spawners[key].pos);
+
+    let controller = room.controller;
+    if(!controller.memory.storages || controller.memory.storages.length == 0)
+    {
+        positions = [];
+        positions.push([controller.pos.x -1,    controller.pos.y +1 ]);
+        positions.push([controller.pos.x -1,    controller.pos.y    ]);
+        positions.push([controller.pos.x -1,    controller.pos.y -1 ]);
+        positions.push([controller.pos.x,       controller.pos.y -1 ]);
+        positions.push([controller.pos.x +1,    controller.pos.y -1 ]);
+        positions.push([controller.pos.x +1,    controller.pos.y    ]);
+        positions.push([controller.pos.x +1,    controller.pos.y +1 ]);
+        positions.push([controller.pos.x ,      controller.pos.y +1 ]);
+        for(key in positions)
+        {
+            var results = room.lookAt(positions[key][0], positions[key][1])
+            let isFree = false;
+            for(resKey in results)
+            {
+                result = results[resKey];
+                if(result.type === "terrain" && result.terrain !== "wall")
+                {
+                    isFree = true;
+                    break;
+                }
+            }
+            if(isFree)
+            {
+                var response = createStorageForObject(room, positions[key][0], positions[key][1], room.controller.id, 100);
+                if(response === OK)
+                    break;
+            }
+        }
+    }
+
+    return true;
 }
 
 // profiler.registerObject(Harvester, "Harvester");
@@ -267,10 +386,25 @@ module.exports = {
 
         room.unfinishedStructures = _.filter(Game.constructionSites, (site) => site.room.id === room.id);
         room.spawners = getSpawners(room);
+
         if(!room.memory.allocated)
-        {
-            console.log("Room "+room.name+" allocated")
             allocateRoom(room);
+        if(!room.memory.allocated)
+            return;
+
+        room.oldLevel = parseInt(room.memory.level);
+        if(room.oldLevel !== room.controller.level)
+        {
+            if(room.oldLevel < room.controller.level)
+            {
+                console.log("room has upgraded!");
+                if(roomUpgrade(room))
+                    room.memory.level = room.controller.level;
+            }
+            else
+            {
+                console.log("room has downgraded!");
+            }
         }
 
         checkQueue("room", room);

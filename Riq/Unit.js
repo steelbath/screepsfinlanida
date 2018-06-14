@@ -32,7 +32,8 @@ class Unit
     {
         var target = null;
         var storageIDs = this.creep.room.memory.storageIDs;
-        storageIDs = [...storageIDs, ...this.creep.room.controller.memory.storages];
+        var controllerStorageIDs = this.creep.room.controller.memory.storages;
+        storageIDs = [...storageIDs, ...controllerStorageIDs ? controllerStorageIDs : []];
         var storages = [];
         for(var key in storageIDs)
         {
@@ -58,21 +59,22 @@ class Unit
     {
         var target = null;
         var storageIDs = this.creep.room.memory.storageIDs;
-        for(var key in storageIDs)
-        {
-            var storage = Game.getObjectById(storageIDs[key]);
-            var store;
-            if(storage.store)
-              store = storage.store.energy;
-            else
-              store = storage.energy;
-
-            if(store > this.creep.carryCapacity)
+        if(this.creep.room.harvesters.length > 1 && this.creep.room.caravans.length == 2)
+            for(var key in storageIDs)
             {
-              target = storage;
-              break;
+                var storage = Game.getObjectById(storageIDs[key]);
+                var store;
+                if(storage.store)
+                  store = storage.store.energy;
+                else
+                  store = storage.energy;
+
+                if(store > this.creep.carryCapacity)
+                {
+                  target = storage;
+                  break;
+                }
             }
-        }
         return target;
     }
 
@@ -130,6 +132,69 @@ class Unit
         }
       */
     }
+
+    build(target)
+    {
+        var result = this.creep.build(target);
+
+        switch(result)
+        {
+            case ERR_NOT_IN_RANGE:
+                this.confirmPath(target);
+                break;
+            case ERR_NOT_ENOUGH_RESOURCES:
+                this.creep.memory.action = "travel";
+                break;
+            case ERR_INVALID_TARGET:
+                let targetID = this.creep.memory.targetID;
+                let target = Memory.constructionSites[targetID];
+                if(target && target.onComplete)
+                {
+                    for(var x = 0; x < target.onCompleteData.length; x++)
+                        buildEvents[target.onComplete](
+                            this.creep.room,
+                            target.onCompleteData[x]
+                        );
+                    delete Memory.constructionSites[targetID];
+                }
+                this.creep.memory.targetID = null;
+                break;
+            default:
+                this.creep.memory.action = "build";
+                this.creep.memory.path = false;
+                break;
+        }
+        return result;
+    }
 }
+
+// we cant send functions over ticks, so we have to have named array for that,
+// so we can call those functions by name
+var buildEvents = {
+    registerToSource: function(room, eventData){
+        pushToQueue(
+            "room",
+            room,
+            "registerStorageToSource",
+            eventData
+        );
+    },
+    addStorageToRoom: function(room, eventData){
+        pushToQueue(
+            "room",
+            room,
+            "addStorageToRoom",
+            eventData
+        );
+    },
+    registerStorageToMemory: function(room, eventData){
+        pushToQueue(
+            "room",
+            room,
+            "registerStorageToMemory",
+            eventData
+        );
+    }
+};
 
 module.exports = Unit;

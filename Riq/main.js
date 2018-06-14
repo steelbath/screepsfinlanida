@@ -69,8 +69,7 @@ module.exports.loop = function() {
     for(var i in Memory.creeps) {
         if(!Game.creeps[i]) {
             creep = Memory.creeps[i];
-            console.log(creep.room)
-            //util.listProperties(creep);
+            console.log("Dead creep memory", JSON.stringify(creep))
             if(creep.role === "harvester"){
               source = Game.getObjectById(creep.sourceID);
               source.memory.harvesterAmount--;

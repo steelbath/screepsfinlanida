@@ -1,18 +1,6 @@
 
 var Unit = require("Unit");
 
-var actions = {
-    registerToSource: function(room, actionData){
-        console.log(room, actionData);
-        pushToQueue(
-            "room",
-            room,
-            "registerStorageToSource",
-            actionData
-        );
-    }
-};
-
 class UnitBuilder extends Unit
 {
     allocateCreep()
@@ -37,33 +25,7 @@ class UnitBuilder extends Unit
                 else
                     var target = Game.getObjectById(this.creep.memory.targetID);
 
-                var result = this.creep.build(target);
-
-                switch(result)
-                {
-                    case ERR_NOT_IN_RANGE:
-                        this.confirmPath(target);
-                        break;
-                    case ERR_NOT_ENOUGH_RESOURCES:
-                        this.creep.memory.action = "travel";
-                        break;
-                    case ERR_INVALID_TARGET:
-                        let targetID = this.creep.memory.targetID;
-                        if(Memory.constructionSites[targetID] && Memory.constructionSites[targetID].onComplete)
-                        {
-                            actions[Memory.constructionSites[targetID].onComplete](
-                                this.creep.room,
-                                Memory.constructionSites[targetID].onCompleteData
-                            );
-                            delete Memory.constructionSites[targetID];
-                        }
-                        this.creep.memory.targetID = null;
-                        break;
-                    default:
-                        this.creep.memory.action = "build";
-                        this.creep.memory.path = false;
-                        break;
-                }
+                this.build(target);
             }
             else
             {

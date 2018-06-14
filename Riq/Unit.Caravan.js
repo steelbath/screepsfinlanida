@@ -50,33 +50,57 @@ class UnitCaravan extends Unit
     update()
     {
         super.update();
+        var targetID = this.creep.memory.targetID;
 
         if(this.creep.memory.action === "storing" || this.creep.carry.energy === this.creep.carryCapacity)
         {
-            var target = this.getDepositStorage();
+            var target = null;
+            if(targetID)
+                target = Game.getObjectById(targetID)
+            else
+                target = this.getDepositStorage();
             if(target)
             {
                 var result = this.creep.transfer(target, RESOURCE_ENERGY);
                 if(result === ERR_NOT_IN_RANGE)
+                {
                     this.confirmPath(target);
+                    if(this.creep.memory.path)
+                        this.creep.memory.targetID = target.id;
+                }
                 else if(result === ERR_FULL || (result === OK && this.creep.carry.energy > 0))
+                {
                     this.creep.memory.action = "storing";
+                    delete this.creep.memory.targetID;
+                }
                 else
                 {
                     this.creep.memory.action = "traveling";
                     this.creep.memory.path = false;
+                    delete this.creep.memory.targetID;
                 }
             }
         }
         else
         {
-            var target = this.getWithdrawStorage();
+            var target = null;
+            if(targetID)
+                target = Game.getObjectById(targetID)
+            else
+                target = this.getWithdrawStorage();
             if(target)
             {
                 if(this.creep.withdraw(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE)
+                {
                     this.confirmPath(target);
+                    if(this.creep.memory.path)
+                        this.creep.memory.targetID = target.id;
+                }
                 else
+                {
                     this.creep.memory.path = false;
+                    delete this.creep.memory.targetID;
+                }
             }
         }
 
