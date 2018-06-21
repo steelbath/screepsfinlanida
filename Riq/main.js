@@ -1,12 +1,8 @@
+require("Globals");
 util = require('TechUtility'); // used for object introspection, see TechUtility package for the functions
 RoomManager = require('RoomManager');
 BinaryHeap = require('BinaryHeap');
 QueueManager = require('QueueManager');
-
-require("Globals");
-
-console.log(globalVar);
-globalFunc();
 
 // Add getter setter memory method for sources
 // Found from interwebs
@@ -32,23 +28,36 @@ if(!Source.prototype.memory)
       }
   });
 
+  // Add getter setter memory method for sources
+  // Found from interwebs
+  if(!StructureController.prototype.memory)
+    Object.defineProperty(StructureController.prototype, 'memory', {
+        get: function() {
+            if(_.isUndefined(Memory.controllers)) {
+                Memory.controllers = {};
+            }
+            if(!_.isObject(Memory.controllers)) {
+                return undefined;
+            }
+            return Memory.controllers[this.id] = Memory.controllers[this.id] || {};
+        },
+        set: function(value) {
+            if(_.isUndefined(Memory.controllers)) {
+                Memory.controllers = {};
+            }
+            if(!_.isObject(Memory.controllers)) {
+                throw new Error('Could not set source memory');
+            }
+            Memory.controllers[this.id] = value;
+        }
+    });
+
 // Any modules that you use that modify the game's prototypes should be require'd
 // before you require the profiler.
 profiler = require('screeps-profiler');
 
-if(!Memory.heaps)
-  Memory.heaps = {};
-
-buildingPriorityQueue = undefined;
-if(!Memory.heaps.buildingPriorityQueue)
-  buildingPriorityQueue = new BinaryHeap.MaxPriorityHeap();
-else
-  buildingPriorityQueue = BinaryHeap.MaxPriorityHeap.deserialize(
-    Memory.heaps.buildingPriorityQueue
-  );
-
-console.log(buildingPriorityQueue.getValueAtTop());
-
+if(!Memory.constructionSites)
+    Memory.constructionSites = {};
 
 // This line monkey patches the global prototypes.
 profiler.enable();
@@ -60,8 +69,7 @@ module.exports.loop = function() {
     for(var i in Memory.creeps) {
         if(!Game.creeps[i]) {
             creep = Memory.creeps[i];
-            console.log(creep.room)
-            //util.listProperties(creep);
+            console.log("Dead creep memory", JSON.stringify(creep))
             if(creep.role === "harvester"){
               source = Game.getObjectById(creep.sourceID);
               source.memory.harvesterAmount--;
@@ -75,9 +83,7 @@ module.exports.loop = function() {
         RoomManager.update(Game.rooms[key]);
     }
 
-    Memory.heaps.buildingPriorityQueue = buildingPriorityQueue.serialize();
-
-    console.log(Game.cpu.getUsed());
+    //console.log(Game.cpu.getUsed());
   });
 }
 

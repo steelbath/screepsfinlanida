@@ -1,4 +1,38 @@
+Harvester = require('Unit.Harvester');
+Upgrader = require('Unit.Upgrader');
+Builder = require('Unit.Builder');
+Caravan = require('Unit.Caravan');
 
+var defaults = {
+    /* Early game creeps */
+    smallHarvester: {
+        body: [CARRY, WORK, WORK, MOVE],
+        namePrefix: 'Small_Harverster_',
+        role: 'harvester',
+        memory: {}
+    },
+
+    smallUpgrader: {
+        body: [CARRY, CARRY, WORK, MOVE, MOVE],
+        namePrefix: 'Small_Upgrader_',
+        role: 'upgrader',
+        memory: {}
+    },
+
+    smallBuilder: {
+        body: [CARRY, CARRY, WORK, MOVE, MOVE],
+        namePrefix: 'Small_Builder_',
+        role: 'builder',
+        memory: {}
+    },
+
+    smallCaravan: {
+        body: [CARRY, CARRY, CARRY, MOVE, MOVE, MOVE],
+        namePrefix: 'Small_Caravan_',
+        role: 'caravan',
+        memory: {}
+    }
+}
 
 module.exports = {
     /*
@@ -14,28 +48,99 @@ module.exports = {
         CLAIM:          600
     */
 
-    smallHarvester: {
-        body: [CARRY, CARRY, WORK, MOVE, MOVE],
-        cost: 300,
-        namePrefix: 'Small_Harverster_',
-        role: 'harvester',
-        memory: {}
+
+    /* Scaling creeps */
+    makeHarvester: function(room){
+        if(room.energyAvailable < 300)
+            return null;
+
+        var total = room.energyCapacityAvailable;
+        if(total < 400)
+            return defaults.smallHarvester;
+
+        var excessEnergy = room.energyAvailable -100;
+        var parts = [CARRY, MOVE];
+        for(; excessEnergy >= 100; excessEnergy -= 100)
+            parts = [...parts, WORK];
+
+        if(excessEnergy >= 50)
+            parts = [...parts, MOVE];
+
+        return {
+            body: parts,
+            namePrefix: 'MK-'+parts.length+' Harverster ',
+            role: 'harvester',
+            memory: {}
+        }
     },
 
-    smallUpgrader: {
-        body: [CARRY, CARRY, WORK, MOVE, MOVE],
-        cost: 300,
-        namePrefix: 'Small_Upgrader_',
-        role: 'upgrader',
-        memory: {}
+    makeUpgrader: function(room){
+        if(room.energyAvailable < 300)
+            return null;
+
+        var total = room.energyCapacityAvailable;
+        if(total < 400)
+            return defaults.smallUpgrader;
+
+        var excessEnergy = room.energyAvailable -100;
+        var parts = [CARRY, MOVE];
+        for(; excessEnergy >= 100; excessEnergy -= 100)
+            parts = [...parts, WORK];
+
+        if(excessEnergy >= 50)
+            parts = [...parts, MOVE];
+
+        return {
+            body: parts,
+            namePrefix: 'MK-'+parts.length+' Upgrader ',
+            role: 'upgrader',
+            memory: {}
+        }
     },
 
-    smallBuilder: {
-        body: [CARRY, CARRY, WORK, MOVE, MOVE],
-        cost: 300,
-        namePrefix: 'Small_Builder_',
-        role: 'builder',
-        memory: {}
+    makeBuilder: function(room){
+        if(room.energyAvailable < 300)
+            return null;
+
+        var total = room.energyCapacityAvailable;
+        if(total < 400)
+            return defaults.smallBuilder;
+
+        var excessEnergy = room.energyAvailable;
+        var parts = [];
+        for(; excessEnergy >= 200; excessEnergy -= 200)
+            parts = [...parts, CARRY, MOVE, WORK];
+
+        for(; excessEnergy >= 50; excessEnergy -= 50)
+            parts = [...parts, MOVE];
+
+        return {
+            body: parts,
+            namePrefix: 'MK-'+parts.length+' Builder ',
+            role: 'builder',
+            memory: {}
+        }
+    },
+
+    makeCaravan: function(room){
+        if(room.energyAvailable < 300)
+            return null;
+
+        var total = room.energyCapacityAvailable;
+        if(total < 400)
+            return defaults.smallCaravan;
+
+        var excessEnergy = room.energyAvailable -100;
+        var parts = [CARRY, MOVE];
+        for(; excessEnergy >= 100; excessEnergy -= 100)
+            parts = [...parts, CARRY, MOVE];
+
+        return {
+            body: parts,
+            namePrefix: 'MK-'+parts.length+' Caravan ',
+            role: 'caravan',
+            memory: {}
+        }
     },
 
     getRoomCreepsDict(room)
@@ -43,7 +148,8 @@ module.exports = {
       roomCreeps = {
         'harvester': [],
         'upgrader': [],
-        'builder': []
+        'builder': [],
+        'caravan': []
       };
       for(var name in Game.creeps)
       {

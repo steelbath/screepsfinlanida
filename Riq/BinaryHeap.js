@@ -106,6 +106,18 @@ class ExtendableBinaryHeap
   }
 
   /**
+  * Return raw data of the heap
+  *
+  * @type {function}
+  *
+  * @returns {list}
+  */
+  getData()
+  {
+    return this.nodes;
+  }
+
+  /**
   * Builds new BinaryHeap from the serialized JSON-data
   *
   * @type {function}
@@ -127,7 +139,6 @@ class ExtendableBinaryHeap
 
 class MaxPriorityHeap extends ExtendableBinaryHeap
 {
-  constructor(){ super(); }
   comparer(node1, node2)
   {
     return node1.priority > node2.priority;
@@ -145,7 +156,6 @@ class MinBuildingHealthHeap extends ExtendableBinaryHeap
       health: 12345
     }
   */
-  constructor(){ super(); }
 
   /* To make the heap always have lowest value at top, we invert the comparer function*/
   comparer(node1, node2)

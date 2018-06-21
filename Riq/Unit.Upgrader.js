@@ -1,75 +1,76 @@
-/** Upgrader **/
-var util = require('TechUtility');
-var creep;
+var Unit = require('Unit');
 
-function confirmPath(target)
+class UnitUpgrader extends Unit
 {
-    if(!creep.memory.path)
+    allocateCreep()
     {
-        creep.memory.targetID = target.id;
-        creep.memory.path = true;
-        //creep.memory.path = creep.pos.findPathTo(target);
+
     }
-}
 
-function move()
-{
-  creep.moveTo(Game.getObjectById(creep.memory.targetID));
-}
-
-module.exports = {
-  update(_creep)
-  {
-    creep = _creep;
-    var storageIDs = creep.room.memory.storageIDs;
-    var controller = creep.room.controller;
-
-    if(creep.memory.action === "upgrade" || creep.carry.energy === creep.carryCapacity)
+    getWithdrawStorage()
     {
-        result = creep.upgradeController(controller);
-        if(result == ERR_NOT_IN_RANGE)
+        var controller = this.creep.room.controller
+        var ctrlStorageIDs = controller.memory.storages;
+        if(ctrlStorageIDs && ctrlStorageIDs.length > 0)
+            for(var x = 0; x < ctrlStorageIDs.length; x++)
+            {
+                var storage = Game.getObjectById(ctrlStorageIDs[x]);
+                if(storage.store.energy > 0)
+                    return storage;
+            }
+
+        if(this.creep.room.hasCaravan && ctrlStorageIDs && ctrlStorageIDs.length > 0)
+            // return null for now, and wait caravan to fill the storages
+            return null;
+        return super.getWithdrawStorage();
+    }
+
+    update()
+    {
+        super.update();
+        var controller = this.creep.room.controller;
+
+        if(this.creep.memory.action === "upgrade" || this.creep.carry.energy === this.creep.carryCapacity)
         {
-            confirmPath(controller);
-        }
-        else if(result == ERR_NOT_ENOUGH_RESOURCES)
-        {
-            creep.memory.action = "travel";
+            var storageIDs = this.creep.room.controller.memory.storages;
+            if(storageIDs && storageIDs.length > 0 && this.creep.carry.energy > 10)
+            {
+                for(var x = 0; x < storageIDs.length; x++)
+                {
+                    var storage = Game.getObjectById(storageIDs[x]);
+                    if(storage.hits < storage.hitsMax * 0.9)
+                    {
+                        this.creep.repair(storage);
+                        return;
+                    }
+                }
+            }
+            var result = this.creep.upgradeController(controller);
+            if(result == ERR_NOT_IN_RANGE)
+                this.confirmPath(controller);
+            else if(result == ERR_NOT_ENOUGH_RESOURCES)
+                this.creep.memory.action = "travel";
+            else
+            {
+                this.creep.memory.action = "upgrade";
+                this.creep.memory.path = false;
+            }
         }
         else
         {
-            creep.memory.action = "upgrade";
-            creep.memory.path = false;
-        }
-    }
-    else
-    {
-        var target = null;
-        for(key in storageIDs)
-        {
-            storage = Game.getObjectById(storageIDs[key]);
-            if(storage.store)
-              store = storage.store;
-            else
-              store = storage.energy;
-
-            if(store > creep.carryCapacity)
+            var target = this.getWithdrawStorage();
+            if(target)
             {
-              target = storage;
-              break;
+                if(this.creep.withdraw(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE)
+                    this.confirmPath(target);
+                else
+                    this.creep.memory.path = false;
             }
         }
-        if(target)
-        {
-            if(creep.withdraw(target, RESOURCE_ENERGY) == ERR_NOT_IN_RANGE)
-            {
-                confirmPath(target);
-            }
-            else
-                creep.memory.path = false;
-        }
-    }
 
-    if(creep.memory.path)
-        move();
-  }
-};
+        if(this.creep.memory.path)
+            this.move();
+    }
+}
+
+module.exports = UnitUpgrader
