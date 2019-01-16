@@ -1,0 +1,10 @@
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.Properties.Resources.resources
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.csproj.GenerateResource.Cache
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.csproj.CoreCompileInputs.cache
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\bin\Debug\XMLEditor.exe
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\bin\Debug\XMLEditor.pdb
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.exe
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.pdb
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.csprojResolveAssemblyReference.cache
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\bin\Debug\XMLEditor.exe.config
+C:\Users\rikua\Documents\Visual Studio 2017\Projects\XMLEditor\XMLEditor\obj\Debug\XMLEditor.Form1.resources
