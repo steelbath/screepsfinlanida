@@ -9,29 +9,44 @@ Game.cpu.getUsed = function(){return 0;}
 
 graphics = {
     lines: [],
-    points: []
+    points: [],
+    walls: []
 }
+offset = 5;
 
 function setup() {
-    createCanvas(600,600);
+    createCanvas(500,500);
 }
 
 function draw() {
-    background(0);
-    stroke(255);
+    background(130);
+    push();
+    translate(offset, offset);
 
+    stroke(0);
+    fill(70);
+    rectMode(CENTER);
+    for(var x = 0; x < graphics.walls.length; x++)
+    {
+        for(var y = 0; y < graphics.walls[x].length; y++)
+        {
+            if(graphics.walls[x][y])
+                rect(x*10, y*10, 10, 10);
+        }
+    }
+
+    stroke(255);
     var edges = graphics.lines;
     var last = [];
-    var offset = 50;
     for(var i = 0; i < edges.length; i++)
     {
         for(var j = 0; j < edges[i].length; j++)
         {
             try{
-                line(offset + last[0]*10,
-                     offset + last[1]*10,
-                     offset + edges[i][j][0]*10,
-                     offset + edges[i][j][1]*10);
+                line(last[0]*10,
+                     last[1]*10,
+                     edges[i][j][0]*10,
+                     edges[i][j][1]*10);
             }
             catch(e){
                 throw e;
@@ -39,4 +54,5 @@ function draw() {
             last = edges[i][j];
         }
     }
+    pop();
 }

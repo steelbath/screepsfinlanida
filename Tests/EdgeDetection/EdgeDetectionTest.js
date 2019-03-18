@@ -230,6 +230,7 @@ class TestEdgeDetection extends TestBase
         var edges = getWallEdges();
         console.log("edges: ", edges);
         graphics.lines = edges;
+        graphics.walls = mapLayout;
     }
 }
 
