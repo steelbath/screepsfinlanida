@@ -13,18 +13,18 @@ function getWallMap(room)
     let walls = [];
     let emptyArr = [];
     console.log(Game.cpu.getUsed());
-    for(var x = 0; x < 50; x++)
+    for(var y = 0; y < 50; y++)
     {
         walls.push([]);
         emptyArr.push([]);
-        for(var y = 0; y < 50; y++)
+        for(var x = 0; x < 50; x++)
         {
             let data = results[x][y][0];
             //console.log(JSON.stringify(data));
             if(data.type === "terrain" && data.terrain === "wall")
-                walls[x].push(true);
+                walls[y].push(true);
             else
-                walls[x].push(false);
+                walls[y].push(false);
             emptyArr.push([]);
         }
     }
@@ -37,7 +37,8 @@ var n = true,
     s = true,
     w = true,
     lastDir = null,
-    checked = [];
+    checked = [],
+    currentEdges = [];
 
 function getPossibleDirections(x, y)
 {
@@ -55,10 +56,8 @@ function getPossibleDirections(x, y)
 function checkWallAt(walls, x, y, direction)
 {
     let returnDataAt = function(xOff, yOff){
-        let wasChecked = checked[x+xOff][y+yOff];
-        checked[x+xOff][y+yOff] = true;
         return [
-            walls[x+xOff][y+yOff] && !wasChecked,
+            walls[x+xOff][y+yOff],
             [x+xOff, y+yOff]
         ];
     }
@@ -74,12 +73,20 @@ function checkWallAt(walls, x, y, direction)
             case 'w':
                 return returnDataAt(-1, 0);
             case 'ne':
+                if(!returnDataAt(+1, 0)[0] && !returnDataAt(0, -1)[0])
+                    return [false];
                 return returnDataAt(+1, -1);
             case 'nw':
+                if(!returnDataAt(-1, 0)[0] && !returnDataAt(0, -1)[0])
+                    return [false];
                 return returnDataAt(-1, -1);
             case 'se':
+                if(!returnDataAt(+1, 0)[0] && !returnDataAt(0, +1)[0])
+                    return [false];
                 return returnDataAt(+1, +1);
             case 'sw':
+                if(!returnDataAt(-1, 0)[0] && !returnDataAt(0, +1)[0])
+                    return [false];
                 return returnDataAt(-1, +1);
             default:
                 console.log("ran default");
@@ -94,46 +101,46 @@ function checkWallAt(walls, x, y, direction)
 function getNextEdgePart(walls, x, y)
 {
     let directions = [
-        'n',
-        'ne',
-        'e',
-        'se',
         's',
         'sw',
         'w',
-        'nw'
+        'nw',
+        'n',
+        'ne',
+        'e',
+        'se'
     ]
     let startDir = null;
 
     if(lastDir)
         switch(lastDir)
         {
-            case 'n':
+            case 's':
                 startDir = 0;
                 break;
-            case 'ne':
+            case 'sw':
                 startDir = 1;
                 break;
-            case 'e':
+            case 'w':
                 startDir = 2;
                 break;
-            case 'se':
+            case 'nw':
                 startDir = 3;
                 break;
-            case 's':
+            case 'n':
                 startDir = 4;
                 break;
-            case 'sw':
+            case 'ne':
                 startDir = 5;
                 break;
-            case 'w':
+            case 'e':
                 startDir = 6;
                 break;
-            case 'nw':
+            case 'se':
                 startDir = 7;
                 break;
             default:
-                console.log("error! following last dir didnt match switchcase:",
+                console.log("error! following dir didnt match switchcase:",
                             "'" + lastDir.toString() + "'",
                             typeof lastDir);
                 startDir = 0;
@@ -146,27 +153,60 @@ function getNextEdgePart(walls, x, y)
     var hasFound = false;
     var foundResp;
     var foundDir;
-    for(var i = startDir; true; i++)
+    var resp;
+    var i = startDir;
+    var cnt = 0;
+    for(;; i++)
     {
-        var resp = checkWallAt(walls, x, y, directions[i]);
-        if(hasFound && !resp[0])
-        {
-            lastDir = foundDir;
-            return foundResp;
-        }
-        else if(resp[0])
+        // Try to turn 2 steps Clock Wise
+        if(i === directions.length)
+            i = 0;
+
+        resp = checkWallAt(walls, x, y, directions[i]);
+        if(resp[0])
         {
             hasFound = true;
             foundResp = resp[1];
             foundDir = directions[i];
+            if(currentEdges[0][0] == resp[1][0] && currentEdges[0][1] == resp[1][1])
+            {
+                return foundResp;
+            }
         }
+        if(_checked[i])
+            break;
+        _checked[i] = true;
+        cnt++;
+        if(cnt > 2)
+        {
+            if(hasFound)
+            {
+                lastDir = foundDir;
+                return foundResp;
+            }
+            break;
+        }
+    }
 
+    _checked = new Array(8);
+    i = startDir;
+    for(;;)
+    {
+        // If nothing found from CW, turn CCW until land found
+        if(resp[0])
+        {
+            checked[resp[1][0]][resp[1][1]] = true;
+            lastDir = directions[i];
+            return resp[1];
+        }
         if(_checked[i])
             break;
         _checked[i] = true;
 
-        if(i === directions.length -1)
-            i = -1;
+        i--;
+        if(i === -1)
+            i = directions.length -1;
+        resp = checkWallAt(walls, x, y, directions[i]);
     }
     return null;
 }
@@ -177,6 +217,13 @@ function checkWallSurrounding(walls, x, y)
     if(!walls[x][y])
         return false;
 
+    // Check corners
+    if(n && w && !walls[x-1][y-1] && walls[x-1][y] && walls[x][y-1] && checked[x-1][y] && checked[x][y-1]  // NW
+    || n && e && !walls[x+1][y-1] && walls[x+1][y] && walls[x][y-1] && checked[x+1][y] && checked[x][y-1]  // NE
+    || s && e && !walls[x+1][y+1] && walls[x+1][y] && walls[x][y+1] && checked[x+1][y] && checked[x][y+1]  // SE
+    || s && w && !walls[x-1][y+1] && walls[x-1][y] && walls[x][y+1] && checked[x-1][y] && checked[x][y+1]) // SW
+        return false;
+
     // Is surrounded by walls?
     if((!w || walls[x-1][y] && !n || walls[x-1][y-1] && !s || walls[x-1][y+1])
     && (!e || walls[x+1][y] && !n || walls[x+1][y-1] && !s || walls[x+1][y+1])
@@ -184,10 +231,10 @@ function checkWallSurrounding(walls, x, y)
         return false;
 
     // Has atleast some wall around where to continue?
-    if(n && walls[x][y-1] && lastDir !== 's'
-    || e && walls[x+1][y] && lastDir !== 'w'
-    || s && walls[x][y+1] && lastDir !== 'n'
-    || w && walls[x-1][y] && lastDir !== 'e')
+    if(n && walls[x][y-1]
+    || e && walls[x+1][y]
+    || s && walls[x][y+1]
+    || w && walls[x-1][y])
         return true;
     return false;
 }
@@ -200,31 +247,31 @@ function getWallEdges(room)
     console.log(Game.cpu.getUsed());
     var edges = [];
     lastDir = null;
-    for(var x = 0; x < 50; x++)
+
+    for(var y = 0; y < 50; y++)
     {
-        for(var y = 0; y < 50; y++)
+        for(var x = 0; x < 50; x++)
         {
             if(walls[x][y] && !checked[x][y])
             {
                 getPossibleDirections(x, y);
                 if(checkWallSurrounding(walls, x, y, lastDir))
                 {
-                    edges.push([]);
+                    currentEdges = [[x, y]];
                     var edgePart = null;
-                    var cnt = 0;
+                    lastDir = "s";
                     var finderX = x;
                     var finderY = y;
-                    while((edgePart = getNextEdgePart(walls, finderX, finderY)) && cnt < 1000)
+                    while((edgePart = getNextEdgePart(walls, finderX, finderY)))
                     {
-                        cnt++;
                         finderX = edgePart[0];
                         finderY = edgePart[1];
-                        edges[edges.length - 1].push(edgePart);
+                        checked[finderX][finderY] = true;
+                        if(currentEdges[0][0] == finderX && currentEdges[0][1] == finderY)
+                            break;
+                        currentEdges.push(edgePart);
                     }
-                    /*
-                    if(y > 0)
-                        return edges;
-                    */
+                    edges.push(currentEdges);
                 }
             }
             checked[x][y] = true;
@@ -236,11 +283,11 @@ function getWallEdges(room)
 function update(room)
 {
     var edges = getWallEdges(room);
-    console.log("edges: ", edges);
-    let last = [];
-
     for(var i = 0; i < edges.length; i++)
     {
+        var last = edges[i][0];
+        if(last)
+            room.visual.line(last[0], last[1], edges[i][edges[i].length-1][0], edges[i][edges[i].length-1][1]);
         for(var j = 0; j < edges[i].length; j++)
         {
             try{

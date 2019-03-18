@@ -1,3 +1,11 @@
+// Set module to by pass NPM module exports which dont exist in testing context
+module = {};
+module.exports = {};
+
+// Initialize screep Game placeholder
+Game = {};
+Game.cpu = {};
+Game.cpu.getUsed = function(){return 0;}
 
 class TestBase
 {

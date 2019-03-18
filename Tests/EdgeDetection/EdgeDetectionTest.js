@@ -124,8 +124,8 @@ class TestEdgeDetection extends TestBase
         checked[10][5] = false;
 
         // SE
-        this.assertFalse(checkWallAt(mapLayout, 8, 4, "se")[0]);
-        this.assertTrue(checkWallAt(mapLayout, 9, 4, "se")[0]);
+        this.assertFalse(checkWallAt(mapLayout, 9, 4, "se")[0]);
+        this.assertTrue(checkWallAt(mapLayout, 9, 5, "se")[0]);
         checked[9][5] = false;
         checked[10][5] = false;
 
@@ -162,23 +162,24 @@ class TestEdgeDetection extends TestBase
             1,1,1,1,0,0,0,0,
             1,1,1,1,0,0,0,0,
         */
+        currentEdges = [[1,1]];
 
-        var resp = getNextEdgePart(mapLayout, 9, 9);
-        this.assertTrue(!!resp);
-        resp.push(lastDir);
-        this.assertEqual(resp, [9, 8, 'n']);
+        var next = getNextEdgePart(mapLayout, 10, 5);
+        this.assertTrue(!!next);
+        next.push(lastDir);
+        this.assertEqual(next, [9, 6, 'sw']);
 
-        resp = getNextEdgePart(mapLayout, resp[0], resp[1]);
-        resp.push(lastDir);
-        this.assertEqual(resp, [10, 7, 'ne']);
+        next = getNextEdgePart(mapLayout, next[0], next[1]);
+        next.push(lastDir);
+        this.assertEqual(next, [8, 6, 'w']);
 
-        resp = getNextEdgePart(mapLayout, resp[0], resp[1]);
-        resp.push(lastDir);
-        this.assertEqual(resp, [11, 8, 'se']);
+        next = getNextEdgePart(mapLayout, next[0], next[1]);
+        next.push(lastDir);
+        this.assertEqual(next, [7, 6, 'w']);
 
-        resp = getNextEdgePart(mapLayout, resp[0], resp[1]);
-        resp.push(lastDir);
-        this.assertEqual(resp, [12, 8, 'e']);
+        next = getNextEdgePart(mapLayout, next[0], next[1]);
+        next.push(lastDir);
+        this.assertEqual(next, [7, 7, 's']);
     }
 
     testWallSurroundings()
@@ -208,17 +209,17 @@ class TestEdgeDetection extends TestBase
             1,1,1,1,0,0,0,0,
         */
 
-        var resp = checkWallSurrounding(mapLayout, 9, 8, 'n')
-        this.assertTrue(resp);
+        var isEdge = checkWallSurrounding(mapLayout, 9, 8, 'n')
+        this.assertTrue(isEdge);
 
-        resp = checkWallSurrounding(mapLayout, 9, 8, 's')
-        this.assertTrue(resp);
+        isEdge = checkWallSurrounding(mapLayout, 9, 8, 's')
+        this.assertTrue(isEdge);
 
-        resp = checkWallSurrounding(mapLayout, 10, 8, 's')
-        this.assertFalse(resp);
+        isEdge = checkWallSurrounding(mapLayout, 10, 8, 's')
+        this.assertFalse(isEdge);
 
-        resp = checkWallSurrounding(mapLayout, 8, 8, 's')
-        this.assertFalse(resp);
+        isEdge = checkWallSurrounding(mapLayout, 8, 8, 's')
+        this.assertFalse(isEdge);
     }
 
     testGetWallEdges()
@@ -226,13 +227,10 @@ class TestEdgeDetection extends TestBase
         getWallMap = function(){
             return [mapLayout, checked];
         }
+        graphics.walls = mapLayout;
 
         var edges = getWallEdges();
         console.log("edges: ", edges);
         graphics.lines = edges;
-        graphics.walls = mapLayout;
     }
 }
-
-// Run tests
-new TestEdgeDetection();

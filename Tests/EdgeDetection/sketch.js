@@ -1,25 +1,25 @@
-// Set module to by pass NPM module exports which dont exist in testing context
-module = {};
-module.exports = {};
-
-// Initialize screep Game placeholder
-Game = {};
-Game.cpu = {};
-Game.cpu.getUsed = function(){return 0;}
-
 graphics = {
     lines: [],
     points: [],
     walls: []
 }
-offset = 5;
+blockSize = 18;
+offset = blockSize / 2;
+
+var init = false;
 
 function setup() {
-    createCanvas(500,500);
+    createCanvas(blockSize * 50,blockSize * 50);
 }
 
 function draw() {
     background(130);
+    if(!init)
+    {
+        // Run tests - Running tests here allows drawing graphic during tests
+        new TestEdgeDetection();
+        init = true;
+    }
     push();
     translate(offset, offset);
 
@@ -31,22 +31,27 @@ function draw() {
         for(var y = 0; y < graphics.walls[x].length; y++)
         {
             if(graphics.walls[x][y])
-                rect(x*10, y*10, 10, 10);
+                rect(x*blockSize, y*blockSize, blockSize, blockSize);
         }
     }
 
     stroke(255);
     var edges = graphics.lines;
-    var last = [];
     for(var i = 0; i < edges.length; i++)
     {
+        var last = edges[i][0];
+        if(last)
+            line(last[0]*blockSize,
+                 last[1]*blockSize,
+                 edges[i][edges[i].length-1][0]*blockSize,
+                 edges[i][edges[i].length-1][1]*blockSize);
         for(var j = 0; j < edges[i].length; j++)
         {
             try{
-                line(last[0]*10,
-                     last[1]*10,
-                     edges[i][j][0]*10,
-                     edges[i][j][1]*10);
+                line(last[0]*blockSize,
+                     last[1]*blockSize,
+                     edges[i][j][0]*blockSize,
+                     edges[i][j][1]*blockSize);
             }
             catch(e){
                 throw e;
