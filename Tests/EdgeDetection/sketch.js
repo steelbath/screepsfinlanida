@@ -1,7 +1,8 @@
 graphics = {
     lines: [],
     points: [],
-    walls: []
+    walls: [],
+    caves: []
 }
 blockSize = 18;
 offset = blockSize / 2;
@@ -41,22 +42,51 @@ function draw() {
     {
         var last = edges[i][0];
         if(last)
-            line(last[0]*blockSize,
-                 last[1]*blockSize,
-                 edges[i][edges[i].length-1][0]*blockSize,
-                 edges[i][edges[i].length-1][1]*blockSize);
+            line(last.x*blockSize,
+                 last.y*blockSize,
+                 edges[i][edges[i].length-1].x*blockSize,
+                 edges[i][edges[i].length-1].y*blockSize);
         for(var j = 0; j < edges[i].length; j++)
         {
             try{
-                line(last[0]*blockSize,
-                     last[1]*blockSize,
-                     edges[i][j][0]*blockSize,
-                     edges[i][j][1]*blockSize);
+                line(last.x*blockSize,
+                     last.y*blockSize,
+                     edges[i][j].x*blockSize,
+                     edges[i][j].y*blockSize);
             }
             catch(e){
                 throw e;
             }
             last = edges[i][j];
+        }
+    }
+
+    stroke(0, 255, 0);
+    var caves = graphics.caves;
+    for(var i = 0; i < caves.length; i++)
+    {
+        var last = caves[i].entrance[0];
+        if(last)
+            line(
+                last.x*blockSize,
+                last.y*blockSize,
+                caves[i].entrance[caves[i].entrance.length-1].x*blockSize,
+                caves[i].entrance[caves[i].entrance.length-1].y*blockSize
+            );
+        for(var j = 0; j < caves[i].entrance.length; j++)
+        {
+            try{
+                line(
+                    last.x*blockSize,
+                    last.y*blockSize,
+                    caves[i].entrance[j].x*blockSize,
+                    caves[i].entrance[j].y*blockSize
+                );
+            }
+            catch(e){
+                throw e;
+            }
+            last = caves[i].entrance[j];
         }
     }
     pop();

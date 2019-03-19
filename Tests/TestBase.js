@@ -120,27 +120,34 @@ class TestBase
         return true;
     }
 
+    _objToString(obj)
+    {
+        if(typeof obj === "object")
+            return JSON.stringify(obj);
+        return obj.toString();
+    }
+
     assertEqual(obj1, obj2)
     {
         if(!this._compareObjects(obj1, obj2))
-            throw new Error(obj1.toString() + " is not equal with " + obj2.toString());
+            throw new Error(this._objToString(obj1) + " is not equal with " + this._objToString(obj2));
     }
 
     assertNotEqual(obj1, obj2)
     {
         if(this._compareObjects(obj1, obj2))
-            throw new Error(obj1.toString() + " shouldn't be equal with " + obj2.toString());
+            throw new Error(this._objToString(obj1) + " shouldn't be equal with " + this._objToString(obj2));
     }
 
     assertTrue(obj)
     {
         if(!obj)
-            throw new Error(obj.toString() + " is not true");
+            throw new Error(this._objToString(obj) + " is not true");
     }
 
     assertFalse(obj)
     {
         if(obj)
-            throw new Error(obj.toString() + " is not false");
+            throw new Error(this._objToString(obj)  + " is not false");
     }
 }

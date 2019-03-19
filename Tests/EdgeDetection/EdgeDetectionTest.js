@@ -165,21 +165,23 @@ class TestEdgeDetection extends TestBase
         currentEdges = [[1,1]];
 
         var next = getNextEdgePart(mapLayout, 10, 5);
+        var expectedResult = {x: 9, y: 6, angle: 225};
         this.assertTrue(!!next);
-        next.push(lastDir);
-        this.assertEqual(next, [9, 6, 'sw']);
+        this.assertEqual(next, expectedResult);
 
-        next = getNextEdgePart(mapLayout, next[0], next[1]);
-        next.push(lastDir);
-        this.assertEqual(next, [8, 6, 'w']);
+        next = getNextEdgePart(mapLayout, next.x, next.y);
+        expectedResult.x = 8;
+        expectedResult.angle = 270;
+        this.assertEqual(next, expectedResult);
 
-        next = getNextEdgePart(mapLayout, next[0], next[1]);
-        next.push(lastDir);
-        this.assertEqual(next, [7, 6, 'w']);
+        next = getNextEdgePart(mapLayout, next.x, next.y);
+        expectedResult.x = 7;
+        this.assertEqual(next, expectedResult);
 
-        next = getNextEdgePart(mapLayout, next[0], next[1]);
-        next.push(lastDir);
-        this.assertEqual(next, [7, 7, 's']);
+        next = getNextEdgePart(mapLayout, next.x, next.y);
+        expectedResult.y = 7;
+        expectedResult.angle = 180;
+        this.assertEqual(next, expectedResult);
     }
 
     testWallSurroundings()
@@ -229,8 +231,11 @@ class TestEdgeDetection extends TestBase
         }
         graphics.walls = mapLayout;
 
-        var edges = getWallEdges();
+        var walls = getWallMap();
+        var edges = getWallEdges(walls);
+        var caves = getCaverns(edges, walls[0]);
         console.log("edges: ", edges);
         graphics.lines = edges;
+        graphics.caves = caves;
     }
 }
